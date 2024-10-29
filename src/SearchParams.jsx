@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Results from "./Results";
 import useBreedList from "./useBreedList";
@@ -12,11 +12,49 @@ const SearchParams = () => {
     breed: "",
   });
   const [animal, setAnimal] = useState("");
+  const [location, setLocation] = useState("");
   const [breeds] = useBreedList(animal);
 
   const results = useQuery(["search", requestParams], fetchSearch);
   const pets = results?.data?.pets ?? [];
 
+  const fetchUserLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+
+          // Reverse geocoding API call to fetch city name using Nominatim
+          try {
+            const response = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
+            );
+            const data = await response.json();
+            const city =
+              data.address.city || data.address.town || data.address.village;
+            console.log(city);
+            setLocation(city || "Location not found");
+            const obj1 = {
+              animal: "",
+              breed: "",
+              location: city,
+            };
+            setRequestParams(obj1);
+          } catch (error) {
+            console.error("Error fetching city name:", error);
+          }
+        },
+        (error) => {
+          console.error("Error fetching location:", error);
+        }
+      );
+    } else {
+      console.error("Geolocation is not supported by this browser.");
+    }
+  };
+  useEffect(() => {
+    fetchUserLocation();
+  }, []);
   return (
     <div className="search-params">
       <form
@@ -33,7 +71,15 @@ const SearchParams = () => {
       >
         <label htmlFor="location">
           Location
-          <input id="location" name="location" placeholder="Location" />
+          <input
+            id="location"
+            name="location"
+            placeholder="Location"
+            value={location}
+            onChange={(e) => {
+              setLocation(e.target.value);
+            }}
+          />
         </label>
 
         <label htmlFor="animal">
